@@ -16,6 +16,8 @@ import librosa
 
 
 MODEL_PATH = os.path.join("models", "AudioTransformer.pth")
+# User-provided ngrok token fallback (for Colab). Prefer environment variable NGROK_AUTHTOKEN.
+NGROK_HARDCODED_TOKEN = "356WEFaqem4MagvNftOEm89DX79_6xmB5VPMyCzJ2f5SSLv1u"
 
 
 def load_model(model_path: str, device: torch.device) -> nn.Module:
@@ -147,5 +149,30 @@ def create_app():
 
 if __name__ == "__main__":
     app = create_app()
+
+    # Optional: start an ngrok tunnel (useful on Google Colab)
+    # Enable by setting USE_NGROK=true and add your token to NGROK_AUTHTOKEN
+    use_ngrok = os.getenv("USE_NGROK", "").lower() in {"1", "true", "yes"}
+    # Auto-enable on Colab if token present
+    try:
+        import google.colab  # type: ignore
+        colab_env = True
+    except Exception:
+        colab_env = False
+
+    token = os.getenv("NGROK_AUTHTOKEN") or NGROK_HARDCODED_TOKEN
+    if (use_ngrok or colab_env) and token:
+        try:
+            from pyngrok import ngrok
+            # Set auth token and open tunnel
+            ngrok.set_auth_token(token)
+            tunnel = ngrok.connect(addr=5000, proto="http")
+            public_url = tunnel.public_url
+            print(f"[ngrok] Tunnel active: {public_url} -> http://127.0.0.1:5000")
+            # Optionally expose as env var
+            os.environ["PUBLIC_URL"] = public_url
+        except Exception as e:
+            print(f"[ngrok] Failed to start tunnel: {e}")
+
     # Default Flask dev server; in production, use gunicorn or waitress
-    app.run(host="0.0.0.0", port=5000, debug=False)
+    app.run(host="0.0.0.0", port=5000, debug=False, use_reloader=False)
