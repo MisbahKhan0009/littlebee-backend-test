@@ -1,0 +1,8 @@
+flask
+numpy
+librosa
+python_speech_features
+soundfile
+tqdm
+torch
+torchvision
